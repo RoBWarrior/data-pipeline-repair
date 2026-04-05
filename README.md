@@ -1,3 +1,16 @@
+---
+title: Data Pipeline Repair
+emoji: 🔧
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_port: 7860
+tags:
+  - openenv
+  - rl
+pinned: false
+---
+
 # Data Pipeline Repair Environment
 
 An OpenEnv-compatible environment where AI agents learn to fix broken data pipelines.
