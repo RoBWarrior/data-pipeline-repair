@@ -1,0 +1,25 @@
+[project]
+name = "data-pipeline-repair"
+version = "1.0.0"
+description = "OpenEnv environment for fixing broken data pipelines"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "pydantic",
+    "pandas",
+    "numpy",
+    "openai",
+    "requests",
+    "openenv-core>=0.2.0",
+]
+
+[project.scripts]
+server = "server.app:main"
+
+[project.urls]
+Homepage = "https://huggingface.co/spaces/RoBWarrior/data-pipeline-repair"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.backends.legacy:build"
