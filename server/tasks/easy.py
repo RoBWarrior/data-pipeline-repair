@@ -106,7 +106,9 @@ def grade_easy(df: pd.DataFrame) -> float:
     except:
         pass
 
-    return round(min(score, 1.0), 4)
+    # Ensure score is strictly between 0 and 1
+    score = max(0.01, min(0.99, score))
+    return round(score, 4)
 
 
 def get_errors(df: pd.DataFrame) -> list:

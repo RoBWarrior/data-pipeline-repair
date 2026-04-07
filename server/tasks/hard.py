@@ -160,7 +160,8 @@ def grade_hard(orders_df: pd.DataFrame,
     except:
         pass
 
-    return round(min(score, 1.0), 4)
+    score = max(0.01, min(0.99, score))
+    return round(score, 4)
 
 
 def get_errors(orders_df: pd.DataFrame, products_df: pd.DataFrame) -> list:
