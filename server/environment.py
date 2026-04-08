@@ -210,14 +210,17 @@ class DataPipelineEnvironment:
     # ------------------------------------------------------------------ #
     def _current_score(self) -> float:
         if self.df is None:
-            return 0.0
+            return 0.01  # never return exactly 0.0
         if self.task_id == EASY_TASK_ID:
-            return grade_easy(self.df)
+            raw = grade_easy(self.df)
         elif self.task_id == MEDIUM_TASK_ID:
-            return grade_medium(self.df)
+            raw = grade_medium(self.df)
         elif self.task_id == HARD_TASK_ID:
-            return grade_hard(self.df, self.df2 if self.df2 is not None else pd.DataFrame())
-        return 0.0
+            raw = grade_hard(self.df, self.df2 if self.df2 is not None else pd.DataFrame())
+        else:
+            raw = 0.01
+    # strictly between 0 and 1
+        return max(0.01, min(0.99, raw))
 
     def _count_valid_rows(self) -> int:
         if self.df is None:
