@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from typing import Optional, Tuple, Any, Dict
+import math
 
 from models import (
     PipelineAction, PipelineObservation, PipelineState
@@ -209,18 +210,25 @@ class DataPipelineEnvironment:
     #  HELPERS                                                             #
     # ------------------------------------------------------------------ #
     def _current_score(self) -> float:
-        if self.df is None:
-            return 0.01  # never return exactly 0.0
-        if self.task_id == EASY_TASK_ID:
-            raw = grade_easy(self.df)
-        elif self.task_id == MEDIUM_TASK_ID:
-            raw = grade_medium(self.df)
-        elif self.task_id == HARD_TASK_ID:
-            raw = grade_hard(self.df, self.df2 if self.df2 is not None else pd.DataFrame())
-        else:
-            raw = 0.01
-    # strictly between 0 and 1
-        return max(0.01, min(0.99, raw))
+        raw = 0.5  # safe default
+        try:
+            if self.df is None:
+                return 0.01
+            if self.task_id == EASY_TASK_ID:
+                raw = grade_easy(self.df)
+            elif self.task_id == MEDIUM_TASK_ID:
+                raw = grade_medium(self.df)
+            elif self.task_id == HARD_TASK_ID:
+                raw = grade_hard(
+                    self.df, 
+                    self.df2 if self.df2 is not None else pd.DataFrame()
+                )
+        except:
+            raw = 0.5
+        # Final safety net
+        if raw is None or not math.isfinite(raw):
+            return 0.5
+        return max(1e-6, min(1 - 1e-6, float(raw)))
 
     def _count_valid_rows(self) -> int:
         if self.df is None:
