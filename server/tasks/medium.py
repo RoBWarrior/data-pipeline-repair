@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import math
 
 MEDIUM_TASK_ID = "fix_schema_drift"
 
@@ -51,6 +52,13 @@ def generate_medium_dataset() -> pd.DataFrame:
     })
 
     return df
+
+def safe_score(x):
+    if x is None or not math.isfinite(x):
+        return 0.5
+    x = float(x)
+    return max(1e-6, min(1 - 1e-6, x))
+
 
 
 def grade_medium(df: pd.DataFrame) -> float:
@@ -119,8 +127,7 @@ def grade_medium(df: pd.DataFrame) -> float:
     except:
         pass
 
-    score = max(0.01, min(0.99, score))
-    return round(score, 4)
+    return safe_score(score)
 
 
 def get_errors(df: pd.DataFrame) -> list:

@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import math
 
 HARD_TASK_ID = "fix_multi_table_join"
 
@@ -70,6 +71,12 @@ def generate_hard_dataset() -> tuple:
     })
 
     return orders_df, products_df
+
+def safe_score(x):
+    if x is None or not math.isfinite(x):
+        return 0.5
+    x = float(x)
+    return max(1e-6, min(1 - 1e-6, x))
 
 
 def grade_hard(orders_df: pd.DataFrame, 
@@ -160,8 +167,7 @@ def grade_hard(orders_df: pd.DataFrame,
     except:
         pass
 
-    score = max(0.01, min(0.99, score))
-    return round(score, 4)
+    return safe_score(score)
 
 
 def get_errors(orders_df: pd.DataFrame, products_df: pd.DataFrame) -> list:
