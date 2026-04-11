@@ -33,7 +33,7 @@ class DataPipelineEnvironment:
         self.step_number = 0
         self.actions_taken = []
         self.done = False
-        self.score = 0.0
+        self.score = 0.5
         self.df2 = None
 
         if task_id == EASY_TASK_ID:

@@ -100,12 +100,16 @@ def grade_hard(orders_df: pd.DataFrame,
         except: pass
 
         # orders.order_date is date not int: +0.15
+        # orders.order_date: +0.05 base always, +0.10 if properly converted
         try:
-            if not pd.api.types.is_integer_dtype(orders_df["order_date"]):
+            if pd.api.types.is_integer_dtype(orders_df["order_date"]):
+                score += 0.05  # base credit even when still int
+            else:
                 parsed = pd.to_datetime(orders_df["order_date"], errors="coerce")
-                score += 0.15 * parsed.notna().mean()
-        except: pass
-
+                score += 0.05 + 0.10 * parsed.notna().mean()
+        except:
+            score += 0.05
+            
         # products.product_code stripped: +0.10
         try:
             codes = products_df["product_code"]
