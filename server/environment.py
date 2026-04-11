@@ -69,10 +69,10 @@ class DataPipelineEnvironment:
         # Reward = improvement
         reward = score_after - score_before
         reward -= 0.01  # step penalty
-        reward = round(max(-0.99, min(0.99, reward)), 4)
+        reward = round(max(-0.98, min(0.98, reward)), 4)
 
         self.score = score_after
-        self.done = True  # ← always terminal like DragonEye
+        self.done = True
 
         return self._observe(), reward, True
 
