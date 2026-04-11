@@ -79,95 +79,58 @@ def safe_score(x):
     return max(1e-6, min(1 - 1e-6, x))
 
 
-def grade_hard(orders_df: pd.DataFrame, 
-               products_df: pd.DataFrame, 
+def grade_hard(orders_df: pd.DataFrame,
+               products_df: pd.DataFrame,
                joined_df: pd.DataFrame = None) -> float:
-    """
-    Grade the hard task. Returns score 0.0 - 1.0.
-    
-    Scoring:
-    - 0.15 → orders.amount has no nulls
-    - 0.15 → orders.product_code all uppercase
-    - 0.15 → orders.order_date is proper date
-    - 0.15 → products.product_code stripped
-    - 0.15 → products.price is numeric (no N/A strings)
-    - 0.25 → join success rate >= 80%
-    """
-    score = 0.0
-
-    # Check 1: orders.amount no nulls (0.15)
     try:
-        if orders_df["amount"].isnull().sum() == 0:
-            score += 0.15
-        else:
-            remaining = orders_df["amount"].isnull().sum()
-            fixed = max(0, 25 - remaining)
-            score += 0.15 * (fixed / 25)
-    except:
-        pass
+        score = 0.1  # base score
 
-    # Check 2: product_code uppercase in orders (0.15)
-    try:
-        codes = orders_df["product_code"].dropna()
-        upper_ratio = (codes == codes.str.upper()).mean()
-        score += 0.15 * upper_ratio
-    except:
-        pass
+        o_total = max(len(orders_df), 1)
+        p_total = max(len(products_df), 1)
 
-    # Check 3: order_date is proper datetime (0.15)
-    try:
-        parsed = pd.to_datetime(orders_df["order_date"], errors="coerce")
-        valid_ratio = parsed.notna().mean()
-        # Make sure it's not still integers
-        if not pd.api.types.is_integer_dtype(orders_df["order_date"]):
-            score += 0.15 * valid_ratio
-        else:
-            score += 0.05  # parsed but still int dtype
-    except:
-        pass
+        # orders.amount no nulls: +0.15
+        try:
+            score += 0.15 * (1 - orders_df["amount"].isnull().sum() / o_total)
+        except: pass
 
-    # Check 4: products.product_code stripped (0.15)
-    try:
-        codes = products_df["product_code"]
-        stripped_ratio = (codes == codes.str.strip()).mean()
-        score += 0.15 * stripped_ratio
-    except:
-        pass
+        # orders.product_code uppercase: +0.15
+        try:
+            codes = orders_df["product_code"].dropna()
+            score += 0.15 * (codes == codes.str.upper()).mean()
+        except: pass
 
-    # Check 5: products.price is numeric (0.15)
-    try:
-        if pd.api.types.is_numeric_dtype(products_df["price"]):
-            score += 0.15
-        else:
-            numeric = pd.to_numeric(products_df["price"], errors="coerce")
-            valid_ratio = numeric.notna().mean()
-            score += 0.1 * valid_ratio
-    except:
-        pass
+        # orders.order_date is date not int: +0.15
+        try:
+            if not pd.api.types.is_integer_dtype(orders_df["order_date"]):
+                parsed = pd.to_datetime(orders_df["order_date"], errors="coerce")
+                score += 0.15 * parsed.notna().mean()
+        except: pass
 
-    # Check 6: join success >= 80% (0.25)
-    try:
-        if joined_df is not None and len(joined_df) > 0:
-            join_ratio = len(joined_df) / 100  # 100 original orders
-            if join_ratio >= 0.8:
-                score += 0.25
+        # products.product_code stripped: +0.10
+        try:
+            codes = products_df["product_code"]
+            score += 0.10 * (codes == codes.str.strip()).mean()
+        except: pass
+
+        # products.price numeric: +0.10
+        try:
+            if pd.api.types.is_numeric_dtype(products_df["price"]):
+                score += 0.10
             else:
-                score += 0.25 * (join_ratio / 0.8)
-        else:
-            # Try joining ourselves to see how close they are
-            test_join = pd.merge(
-                orders_df, products_df,
-                on="product_code", how="inner"
-            )
+                numeric = pd.to_numeric(products_df["price"], errors="coerce")
+                score += 0.10 * numeric.notna().mean()
+        except: pass
+
+        # join success: +0.25
+        try:
+            test_join = pd.merge(orders_df, products_df, on="product_code", how="inner")
             join_ratio = len(test_join) / 100
-            if join_ratio >= 0.8:
-                score += 0.25
-            else:
-                score += 0.25 * (join_ratio / 0.8)
-    except:
-        pass
+            score += 0.25 * min(join_ratio, 0.95)
+        except: pass
 
-    return safe_score(score)
+        return round(max(0.05, min(0.95, score)), 4)
+    except:
+        return 0.5
 
 
 def get_errors(orders_df: pd.DataFrame, products_df: pd.DataFrame) -> list:

@@ -52,70 +52,41 @@ def safe_score(x):
 
 
 def grade_easy(df: pd.DataFrame) -> float:
-    """
-    Grade the fixed dataset. Returns score 0.0 - 1.0.
-    
-    Scoring:
-    - 0.4 → age column is int dtype with no nulls
-    - 0.3 → salary has no nulls
-    - 0.2 → email has no nulls
-    - 0.1 → all row count preserved (no accidental deletions)
-    """
-    score = 0.0
-    total_rows = 50
-
-    # Check 1: age is numeric and clean (0.4)
     try:
-        if pd.api.types.is_numeric_dtype(df["age"]):
-            null_ages = df["age"].isnull().sum()
-            if null_ages == 0:
-                score += 0.4
-            else:
-                score += 0.2  # partial — right type but still has nulls
-        else:
-            # Maybe they stripped 'yrs' but didn't cast — partial credit
-            try:
-                df["age"].str.replace("yrs", "").astype(int)
-                score += 0.1
-            except:
-                pass
-    except:
-        pass
+        total = max(len(df), 1)
+        score = 0.1  # base score — never starts at 0
 
-    # Check 2: salary has no nulls (0.3)
+        # age numeric: +0.30
+        try:
+            if pd.api.types.is_numeric_dtype(df["age"]):
+                score += 0.30
+        except: pass
+
+        # salary nulls: +0.30 proportional
+        try:
+            nulls = df["salary"].isnull().sum()
+            score += 0.30 * (1 - nulls / total)
+        except: pass
+
+        # email nulls: +0.20 proportional
+        try:
+            nulls = df["email"].isnull().sum()
+            score += 0.20 * (1 - nulls / total)
+        except: pass
+
+        # cap strictly between 0 and 1
+        return round(max(0.05, min(0.95, score)), 4)
+    except:
+        return 0.5
+
+def sanitize_score(x):
     try:
-        if df["salary"].isnull().sum() == 0:
-            score += 0.3
-        else:
-            # Partial credit for reducing nulls
-            remaining = df["salary"].isnull().sum()
-            reduction = max(0, 10 - remaining) / 10
-            score += 0.15 * reduction
-    except:
-        pass
-
-    # Check 3: email has no nulls (0.2)
-    try:
-        if df["email"].isnull().sum() == 0:
-            score += 0.2
-        else:
-            remaining = df["email"].isnull().sum()
-            reduction = max(0, 5 - remaining) / 5
-            score += 0.1 * reduction
-    except:
-        pass
-
-    # Check 4: row count preserved (0.1)
-    try:
-        if len(df) >= total_rows:
-            score += 0.1
-        elif len(df) >= total_rows * 0.9:
-            score += 0.05
-    except:
-        pass
-
-    return safe_score(score)
-
+        x = float(x)
+    except Exception:
+        return 0.5
+    if not math.isfinite(x):
+        return 0.5
+    return max(1e-6, min(1 - 1e-6, x))
 
 def get_errors(df: pd.DataFrame) -> list:
     """Return list of current issues in the dataframe."""

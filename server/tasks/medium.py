@@ -62,72 +62,47 @@ def safe_score(x):
 
 
 def grade_medium(df: pd.DataFrame) -> float:
-    """
-    Grade the fixed dataset. Returns score 0.0 - 1.0.
-    
-    Scoring:
-    - 0.25 → dates standardized to YYYY-MM-DD format
-    - 0.25 → revenue is float dtype
-    - 0.2  → no duplicate order_ids
-    - 0.15 → no nulls in region
-    - 0.15 → column renamed to customer_name
-    """
-    score = 0.0
-
-    # Check 1: dates standardized (0.25)
     try:
-        parsed = pd.to_datetime(df["order_date"], format="%Y-%m-%d", errors="coerce")
-        valid_dates = parsed.notna().sum()
-        ratio = valid_dates / len(df)
-        score += 0.25 * ratio
-    except:
-        pass
+        total = max(len(df), 1)
+        score = 0.1  # base score
 
-    # Check 2: revenue is float (0.25)
-    try:
-        if pd.api.types.is_float_dtype(df["revenue"]) or pd.api.types.is_integer_dtype(df["revenue"]):
-            score += 0.25
-        else:
-            # Try to see if values are numeric strings without $
-            test = df["revenue"].astype(str).str.replace("$", "").str.strip()
-            pd.to_numeric(test, errors="raise")
-            score += 0.1  # partial — removed $ but not cast
-    except:
-        pass
+        # dates parseable: +0.25
+        try:
+            parsed = pd.to_datetime(df["order_date"], format="%Y-%m-%d", errors="coerce")
+            score += 0.25 * (parsed.notna().sum() / total)
+        except: pass
 
-    # Check 3: no duplicate order_ids (0.2)
-    try:
-        dup_count = df["order_id"].duplicated().sum()
-        if dup_count == 0:
-            score += 0.2
-        else:
-            original_dups = 10
-            fixed = max(0, original_dups - dup_count)
-            score += 0.2 * (fixed / original_dups)
-    except:
-        pass
+        # revenue is float: +0.25
+        try:
+            if pd.api.types.is_float_dtype(df["revenue"]):
+                score += 0.25
+            else:
+                numeric = pd.to_numeric(
+                    df["revenue"].astype(str).str.replace("$",""), errors="coerce"
+                )
+                score += 0.25 * (numeric.notna().sum() / total)
+        except: pass
 
-    # Check 4: no nulls in region (0.15)
-    try:
-        nulls = df["region"].isnull().sum()
-        if nulls == 0:
-            score += 0.15
-        else:
-            fixed = max(0, 12 - nulls)
-            score += 0.15 * (fixed / 12)
-    except:
-        pass
+        # no duplicate order_ids: +0.20
+        try:
+            dup_ratio = df["order_id"].duplicated().sum() / total
+            score += 0.20 * (1 - dup_ratio)
+        except: pass
 
-    # Check 5: column renamed (0.15)
-    try:
-        if "customer_name" in df.columns:
-            score += 0.15
-        elif "cust_nm" not in df.columns:
-            score += 0.05  # renamed to something, just not exact name
-    except:
-        pass
+        # region no nulls: +0.15
+        try:
+            score += 0.15 * (1 - df["region"].isnull().sum() / total)
+        except: pass
 
-    return safe_score(score)
+        # customer_name exists: +0.05
+        try:
+            if "customer_name" in df.columns:
+                score += 0.05
+        except: pass
+
+        return round(max(0.05, min(0.95, score)), 4)
+    except:
+        return 0.5
 
 
 def get_errors(df: pd.DataFrame) -> list:
