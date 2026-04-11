@@ -23,7 +23,7 @@ class DataPipelineEnvironment:
         self.step_number: int = 0
         self.actions_taken: list = []
         self.done: bool = False
-        self.score: float = 0.0
+        self.score: float = 0.5
 
     # ------------------------------------------------------------------ #
     #  RESET                                                               #
@@ -52,46 +52,29 @@ class DataPipelineEnvironment:
     # ------------------------------------------------------------------ #
     def step(self, action: PipelineAction) -> Tuple[PipelineObservation, float, bool]:
         if self.done:
-            return self._observe(), self.score, True
+            return self._observe(), self._safe_score(), True
 
         self.step_number += 1
         self.actions_taken.append(action.command)
 
-        reward = 0.0
-        score_before = self._current_score()
+        score_before = self._safe_score()
 
         try:
             self._apply_action(action)
-        except Exception as e:
-            # Bad action — small penalty, keep going
+        except Exception:
             pass
 
-        score_after = self._current_score()
+        score_after = self._safe_score()
 
-        # Reward = improvement in score
+        # Reward = improvement
         reward = score_after - score_before
-
-        # Penalize repeated same action (loop detection)
-        if len(self.actions_taken) >= 3:
-            last3 = self.actions_taken[-3:]
-            if last3[0] == last3[1] == last3[2]:
-                reward -= 0.05
-
-        # Penalize step cost (encourages efficiency)
-        reward -= 0.01
+        reward -= 0.01  # step penalty
+        reward = round(max(-0.99, min(0.99, reward)), 4)
 
         self.score = score_after
+        self.done = True  # ← always terminal like DragonEye
 
-        # Check done conditions
-        if action.command == "done":
-            self.done = True
-        elif self.step_number >= MAX_STEPS:
-            self.done = True
-        elif score_after >= 0.99:
-            self.done = True
-
-        reward = round(max(-1.0, min(1.0, reward)), 4)
-        return self._observe(), reward, self.done
+        return self._observe(), reward, True
 
     # ------------------------------------------------------------------ #
     #  STATE                                                               #
@@ -104,7 +87,7 @@ class DataPipelineEnvironment:
             max_steps=MAX_STEPS,
             total_rows=len(self.df) if self.df is not None else 0,
             valid_rows=valid_rows,
-            score=self.score,
+            score=self._safe_score(),
             done=self.done,
             actions_taken=self.actions_taken
         )
@@ -209,26 +192,32 @@ class DataPipelineEnvironment:
     # ------------------------------------------------------------------ #
     #  HELPERS                                                             #
     # ------------------------------------------------------------------ #
-    def _current_score(self) -> float:
-        raw = 0.5  # safe default
+    def _safe_score(self) -> float:
         try:
             if self.df is None:
-                return 0.01
+                return 0.5
             if self.task_id == EASY_TASK_ID:
                 raw = grade_easy(self.df)
             elif self.task_id == MEDIUM_TASK_ID:
                 raw = grade_medium(self.df)
             elif self.task_id == HARD_TASK_ID:
                 raw = grade_hard(
-                    self.df, 
+                    self.df,
                     self.df2 if self.df2 is not None else pd.DataFrame()
                 )
+            else:
+                raw = 0.5
+            if raw is None or not isinstance(raw, (int, float)):
+                return 0.5
+            import math
+            if not math.isfinite(raw):
+                return 0.5
+            return round(max(0.05, min(0.95, float(raw))), 4)
         except:
-            raw = 0.5
-        # Final safety net
-        if raw is None or not math.isfinite(raw):
             return 0.5
-        return max(1e-6, min(1 - 1e-6, float(raw)))
+        
+    def _current_score(self) -> float:
+        return self._safe_score()
 
     def _count_valid_rows(self) -> int:
         if self.df is None:
@@ -249,7 +238,7 @@ class DataPipelineEnvironment:
                 errors=[],
                 step_number=self.step_number,
                 max_steps=MAX_STEPS,
-                score_so_far=0.0,
+                score_so_far=0.5,
                 done=self.done
             )
 

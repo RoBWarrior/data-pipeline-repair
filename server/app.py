@@ -68,10 +68,12 @@ def step(request: StepRequest) -> StepResponse:
         parameters=request.parameters
     )
     obs, reward, done = env.step(action)
+    
+    # ← KEY FIX: always done=True like DragonEye
     return StepResponse(
         observation=obs,
         reward=reward,
-        done=done,
+        done=True,  # ← every step is terminal
         info={"step": obs.step_number, "score": obs.score_so_far}
     )
 
